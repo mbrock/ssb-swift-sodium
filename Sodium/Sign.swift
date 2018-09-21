@@ -117,6 +117,34 @@ extension Sign {
     }
 }
 
+extension Sign {
+    public func ed25519_pk_to_curve25519(publicKey: PublicKey) -> PublicKey? {
+        guard publicKey.count == PublicKeyBytes else {
+            return nil
+        }
+        
+        var message = PublicKey(count: PublicKeyBytes)
+        
+        guard .SUCCESS == crypto_sign_ed25519_pk_to_curve25519(
+            &message, publicKey
+        ).exitCode else { return nil }
+        
+        return message
+    }
+    
+    public func ed25519_sk_to_curve25519(secretKey: SecretKey) -> SecretKey? {
+        guard secretKey.count == SecretKeyBytes else {
+            return nil
+        }
+        
+        var result = SecretKey(count: SecretKeyBytes)
+        
+        guard .SUCCESS == crypto_sign_ed25519_sk_to_curve25519(&result, secretKey.prefix(upTo: 32).bytes).exitCode else { return nil }
+        
+        return result
+    }
+}
+
 extension Sign: KeyPairGenerator {
     public typealias PublicKey = Bytes
     public typealias SecretKey = Bytes

@@ -55,21 +55,35 @@ extension SecretBox {
      - Returns: The encrypted ciphertext, encryption nonce, and authentication tag.
      */
     public func seal(message: Bytes, secretKey: Key) -> (cipherText: Bytes, nonce: Nonce, mac: MAC)? {
+        let nonce = self.nonce()
+        guard let (cipherText, mac) = seal(message: message, secretKey: secretKey, nonce: nonce) else { return nil }
+        return (cipherText: cipherText, nonce: nonce, mac: mac)
+    }
+    
+    /**
+     Encrypts a message with a shared secret key (detached mode).
+     
+     - Parameter message: The message to encrypt.
+     - Parameter secretKey: The shared secret key.
+     - Parameter nonce: The encryption nonce.
+     
+     - Returns: The encrypted ciphertext and authentication tag.
+     */
+    public func seal(message: Bytes, secretKey: Key, nonce: Nonce) -> (cipherText: Bytes, mac: MAC)? {
         guard secretKey.count == KeyBytes else { return nil }
-
+        
         var cipherText = Bytes(count: message.count)
         var mac = Bytes(count: MacBytes)
-        let nonce = self.nonce()
-
+        
         guard .SUCCESS == crypto_secretbox_detached (
             &cipherText,
             &mac,
             message, UInt64(message.count),
             nonce,
             secretKey
-        ).exitCode else { return nil }
-
-        return (cipherText: cipherText, nonce: nonce, mac: mac)
+            ).exitCode else { return nil }
+        
+        return (cipherText: cipherText, mac: mac)
     }
 }
 
@@ -153,4 +167,15 @@ extension SecretBox: SecretKeyGenerator {
     public var KeyBytes: Int { return Int(crypto_secretbox_keybytes()) }
 
     public static let keygen: (_ k: UnsafeMutablePointer<UInt8>) -> Void = crypto_secretbox_keygen
+}
+
+extension SecretBox {
+    public func scalarmult(n: Key, p: Key) -> Bytes? {        
+        var q = Bytes(count: KeyBytes)
+        
+        guard .SUCCESS == crypto_scalarmult(&q, n.prefix(upTo: 32).bytes, p).exitCode
+        else { return nil }
+        
+        return q
+    }
 }
